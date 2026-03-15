@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mamma - Meal Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- Fonts: Inter for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header id="main-header">
+            <h1 id="header-title">Mamma</h1>
+            <div style="display:flex; gap:10px;">
+                <span id="sync-status" class="material-icons-round" style="color:var(--text-secondary); display:none; align-items:center; font-size:18px;">cloud_off</span>
+                <button id="header-action" class="icon-btn" style="display: none;"><span class="material-icons-round">add</span></button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Views will be injected here (Daily, Recipe, Stats, Shopping, Settings) -->
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav">
+            <button class="nav-item active" data-view="daily">
+                <span class="material-icons-round">calendar_today</span>
+                <span>일간 기록</span>
+            </button>
+            <button class="nav-item" data-view="recipe">
+                <span class="material-icons-round">menu_book</span>
+                <span>메뉴 관리</span>
+            </button>
+            <button class="nav-item" data-view="stats">
+                <span class="material-icons-round">insights</span>
+                <span>통계 & AI</span>
+            </button>
+            <button class="nav-item" data-view="shopping">
+                <span class="material-icons-round">shopping_cart</span>
+                <span>장보기</span>
+            </button>
+        </nav>
+    </div>
+    
+    <!-- Modals -->
+    <div id="modal-container" class="hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" id="modal-body"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/store.js"></script>
+    <script type="module" src="js/ai.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('ServiceWorker registration successful');
+                }).catch(err => {
+                    console.error('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
