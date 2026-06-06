@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Mamma - Meal Tracker</title>
+    <title>맘마 - 생활 필수 앱</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -20,9 +20,64 @@
 </head>
 <body>
     <div id="app">
+        <!-- Sidebar overlay for mobile -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+        
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar">
+            <div class="sidebar-brand">
+                <span class="material-icons-round">home</span>
+                <h2>맘마</h2>
+            </div>
+            
+            <div class="sidebar-menu">
+                <!-- Group: Mamma -->
+                <div class="menu-group">
+                    <div class="menu-group-header active" id="mamma-group-header">
+                        <span class="material-icons-round">restaurant</span>
+                        <span>맘마</span>
+                        <span class="material-icons-round chevron">expand_more</span>
+                    </div>
+                    <div class="menu-sub-items" id="mamma-sub-items">
+                        <button class="menu-item active" data-view="daily">
+                            <span class="material-icons-round">calendar_today</span>
+                            <span>일간 기록</span>
+                        </button>
+                        <button class="menu-item" data-view="recipe">
+                            <span class="material-icons-round">menu_book</span>
+                            <span>메뉴 관리</span>
+                        </button>
+                        <button class="menu-item" data-view="stats">
+                            <span class="material-icons-round">insights</span>
+                            <span>통계 & AI</span>
+                        </button>
+                        <button class="menu-item" data-view="shopping">
+                            <span class="material-icons-round">shopping_cart</span>
+                            <span>장보기</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Shopping Cart -->
+                <button class="menu-item" data-view="cart">
+                    <span class="material-icons-round">local_mall</span>
+                    <span>쇼핑카트</span>
+                </button>
+                
+                <!-- Fishing Record -->
+                <button class="menu-item" data-view="fishing">
+                    <span class="material-icons-round">phishing</span>
+                    <span>낚시기록</span>
+                </button>
+            </div>
+        </aside>
+
         <!-- Header -->
         <header id="main-header">
-            <h1 id="header-title">Mamma</h1>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button id="sidebar-toggle" class="icon-btn"><span class="material-icons-round">menu</span></button>
+                <h1 id="header-title">맘마</h1>
+            </div>
             <div style="display:flex; gap:10px;">
                 <span id="sync-status" class="material-icons-round" style="color:var(--text-secondary); display:none; align-items:center; font-size:18px;">cloud_off</span>
                 <button id="header-action" class="icon-btn" style="display: none;"><span class="material-icons-round">add</span></button>
@@ -31,28 +86,8 @@
 
         <!-- Main Content Area -->
         <main id="main-content">
-            <!-- Views will be injected here (Daily, Recipe, Stats, Shopping, Settings) -->
+            <!-- Views will be injected here (Daily, Recipe, Stats, Shopping, Cart, Fishing) -->
         </main>
-
-        <!-- Bottom Navigation -->
-        <nav id="bottom-nav">
-            <button class="nav-item active" data-view="daily">
-                <span class="material-icons-round">calendar_today</span>
-                <span>일간 기록</span>
-            </button>
-            <button class="nav-item" data-view="recipe">
-                <span class="material-icons-round">menu_book</span>
-                <span>메뉴 관리</span>
-            </button>
-            <button class="nav-item" data-view="stats">
-                <span class="material-icons-round">insights</span>
-                <span>통계 & AI</span>
-            </button>
-            <button class="nav-item" data-view="shopping">
-                <span class="material-icons-round">shopping_cart</span>
-                <span>장보기</span>
-            </button>
-        </nav>
     </div>
     
     <!-- Modals -->

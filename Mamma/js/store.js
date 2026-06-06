@@ -9,7 +9,9 @@ const defaultData = {
     categories: ['한식', '일식', '양식', '중식', '분식', '기타'],
     recipes: [], // { id, name, category, ingredients: [{name, grams}], totalCost, hasUndecidedCost }
     logs: {}, // { '2026-03-15': { breakfast: [recipeId], lunch: [], dinner: [] } }
-    shoppingList: { selectedMenus: [], customItems: [] } // Phase 2: Shopping List State
+    shoppingList: { selectedMenus: [], customItems: [] }, // Phase 2: Shopping List State
+    shoppingCart: { active: [], history: [] },
+    fishingLogs: []
 };
 
 class Store {
@@ -20,7 +22,10 @@ class Store {
     loadData() {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
-            return JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!parsed.shoppingCart) parsed.shoppingCart = { active: [], history: [] };
+            if (!parsed.fishingLogs) parsed.fishingLogs = [];
+            return parsed;
         }
         return JSON.parse(JSON.stringify(defaultData));
     }
@@ -155,6 +160,77 @@ class Store {
         this.saveData();
     }
 
+    // Shopping Cart Methods
+    getShoppingCart() {
+        if (!this.data.shoppingCart) this.data.shoppingCart = { active: [], history: [] };
+        return this.data.shoppingCart;
+    }
+    addCartItem(name) {
+        const cart = this.getShoppingCart();
+        cart.active.push({
+            id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5),
+            name: name,
+            createdAt: Date.now()
+        });
+        this.saveData();
+    }
+    archiveCartItem(id) {
+        const cart = this.getShoppingCart();
+        const idx = cart.active.findIndex(item => item.id === id);
+        if (idx > -1) {
+            const [item] = cart.active.splice(idx, 1);
+            item.archivedAt = Date.now();
+            // Check if it already exists in history by name to prevent clutter
+            const exists = cart.history.some(h => h.name.toLowerCase() === item.name.toLowerCase());
+            if (!exists) {
+                cart.history.unshift(item); // Add to the top of history
+            }
+            this.saveData();
+        }
+    }
+    restoreCartItem(id) {
+        const cart = this.getShoppingCart();
+        const idx = cart.history.findIndex(item => item.id === id);
+        if (idx > -1) {
+            const [item] = cart.history.splice(idx, 1);
+            item.createdAt = Date.now();
+            delete item.archivedAt;
+            cart.active.push(item);
+            this.saveData();
+        }
+    }
+    deleteCartItemPermanently(id) {
+        const cart = this.getShoppingCart();
+        cart.history = cart.history.filter(item => item.id !== id);
+        this.saveData();
+    }
+
+    // Fishing Log Methods
+    getFishingLogs() {
+        if (!this.data.fishingLogs) this.data.fishingLogs = [];
+        return this.data.fishingLogs;
+    }
+    saveFishingLog(id = null, logData) {
+        const logs = this.getFishingLogs();
+        if (id) {
+            const idx = logs.findIndex(l => l.id === id);
+            if (idx > -1) {
+                logs[idx] = { ...logs[idx], ...logData, id: id };
+            }
+        } else {
+            const newLog = {
+                ...logData,
+                id: Date.now().toString()
+            };
+            logs.unshift(newLog); // newer first
+        }
+        this.saveData();
+    }
+    deleteFishingLog(id) {
+        this.data.fishingLogs = this.getFishingLogs().filter(l => l.id !== id);
+        this.saveData();
+    }
+
     // Phase 2: Export/Import for Sync
     exportData() {
         return btoa(encodeURIComponent(JSON.stringify(this.data)));
@@ -164,6 +240,9 @@ class Store {
             const parsed = JSON.parse(decodeURIComponent(atob(base64String)));
             if (parsed && parsed.recipes && parsed.logs) {
                 this.data = parsed;
+                // Migrate parsed data as well when imported
+                if (!this.data.shoppingCart) this.data.shoppingCart = { active: [], history: [] };
+                if (!this.data.fishingLogs) this.data.fishingLogs = [];
                 this.saveData();
                 return true;
             }
