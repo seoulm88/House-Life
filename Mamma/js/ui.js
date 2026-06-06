@@ -867,9 +867,21 @@ const UI = {
             activeHtml = `<p style="color:var(--text-secondary); text-align:center; padding: 20px 0;">현재 장바구니에 담긴 물품이 없습니다.</p>`;
         } else {
             cart.active.forEach(item => {
+                let memoHtml = '';
+                if (item.memo) {
+                    const isLink = item.memo.startsWith('http://') || item.memo.startsWith('https://');
+                    if (isLink) {
+                        memoHtml = `<a href="${item.memo}" target="_blank" style="color:#2196f3; font-size:12px; margin-top:2px; display:inline-flex; align-items:center; gap:2px; text-decoration:none;"><span class="material-icons-round" style="font-size:14px;">open_in_new</span>구매 링크</a>`;
+                    } else {
+                        memoHtml = `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${item.memo}</div>`;
+                    }
+                }
                 activeHtml += `
                     <div class="cart-item">
-                        <span>${item.name}</span>
+                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                            <span>${item.name}</span>
+                            ${memoHtml}
+                        </div>
                         <button class="icon-btn" style="color:#4caf50;" onclick="UI.archiveCartItem('${item.id}')">
                             <span class="material-icons-round">check_circle</span>
                         </button>
@@ -890,9 +902,16 @@ const UI = {
             historyHtml = `<p style="color:var(--text-secondary); text-align:center; padding: 20px 0;">이전 구매 목록이 없습니다.</p>`;
         } else {
             filteredHistory.forEach(item => {
+                let memoHtml = '';
+                if (item.memo) {
+                    memoHtml = `<div style="font-size:11px; color:var(--text-secondary); margin-top:1px;">${item.memo}</div>`;
+                }
                 historyHtml += `
-                    <div class="history-item">
-                        <span>${item.name}</span>
+                    <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                            <span>${item.name}</span>
+                            ${memoHtml}
+                        </div>
                         <div style="display:flex; gap:4px;">
                             <button class="icon-btn" style="width:28px; height:28px; color:var(--text-primary);" onclick="UI.restoreCartItem('${item.id}')" title="카트에 다시 담기">
                                 <span class="material-icons-round" style="font-size:18px;">refresh</span>
@@ -909,9 +928,10 @@ const UI = {
         let html = `
             <div class="card">
                 <div class="card-title">🛒 현재 살 것들</div>
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
                     <input type="text" id="cart-add-input" placeholder="생필품 이름 입력 (예: 우유, 화장지, 생수)" style="margin-bottom:0;" onkeypress="if(event.key === 'Enter') UI.addCartItem()">
-                    <button class="primary-btn" style="width:auto; padding:0 20px;" onclick="UI.addCartItem()">+</button>
+                    <input type="text" id="cart-add-memo" placeholder="비고/구매 사이트 주소 입력 (선택)" style="margin-bottom:0;" onkeypress="if(event.key === 'Enter') UI.addCartItem()">
+                    <button class="primary-btn" onclick="UI.addCartItem()">추가하기</button>
                 </div>
                 <div id="active-cart-list">${activeHtml}</div>
             </div>
@@ -948,11 +968,14 @@ const UI = {
 
     addCartItem() {
         const inp = document.getElementById('cart-add-input');
+        const memoInp = document.getElementById('cart-add-memo');
         if (!inp) return;
         const name = inp.value.trim();
+        const memo = memoInp ? memoInp.value.trim() : '';
         if (name) {
-            store.addCartItem(name);
+            store.addCartItem(name, memo);
             inp.value = '';
+            if (memoInp) memoInp.value = '';
             this.renderCartView();
         }
     },

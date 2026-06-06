@@ -165,11 +165,12 @@ class Store {
         if (!this.data.shoppingCart) this.data.shoppingCart = { active: [], history: [] };
         return this.data.shoppingCart;
     }
-    addCartItem(name) {
+    addCartItem(name, memo = '') {
         const cart = this.getShoppingCart();
         cart.active.push({
             id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5),
             name: name,
+            memo: memo,
             createdAt: Date.now()
         });
         this.saveData();
