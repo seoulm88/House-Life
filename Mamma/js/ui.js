@@ -84,6 +84,8 @@ const UI = {
                 this.showSyncModal();
             } else if (this.currentView === 'fishing') {
                 this.showFishingLogModal();
+            } else if (this.currentView === 'dining') {
+                this.showDiningEntryModal();
             }
         });
     },
@@ -112,6 +114,12 @@ const UI = {
             case 'shopping':
                 this.headerTitle.textContent = '장보기';
                 this.renderShoppingView();
+                break;
+            case 'dining':
+                this.headerTitle.textContent = '미니다이닝';
+                this.headerAction.style.display = 'flex';
+                this.headerAction.innerHTML = '<span class="material-icons-round">add</span>';
+                this.renderDiningView();
                 break;
             case 'cart':
                 this.headerTitle.textContent = '쇼핑카트';
@@ -1452,6 +1460,374 @@ const UI = {
                 </div>
                 <button class="primary-btn" style="margin-top:15px;" onclick="UI.renderFishingAnalyticsSection()">재시도</button>
             `;
+        }
+    },
+
+    // ==========================================
+    // Mini Dining Helper Methods
+    // ==========================================
+    compressImage(file, maxWidth = 800) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    resolve(dataUrl);
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    },
+
+    readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+    },
+
+    // ==========================================
+    // Mini Dining View
+    // ==========================================
+    renderDiningView() {
+        const list = store.getMiniDiningList();
+        const searchKeyword = window._diningSearchFilter || '';
+        
+        let filteredList = list;
+        if (searchKeyword) {
+            filteredList = list.filter(e => e.name.toLowerCase().includes(searchKeyword.toLowerCase()));
+        }
+        
+        let gridHtml = '';
+        if (filteredList.length === 0) {
+            gridHtml = `
+                <div style="grid-column: 1/-1; text-align:center; color:var(--text-secondary); padding:40px 0;">
+                    <span class="material-icons-round" style="font-size:48px; margin-bottom:12px;">local_dining</span>
+                    <p>${searchKeyword ? '검색 결과가 없습니다.' : '등록된 요리가 없습니다.<br>우측 상단 + 버튼을 눌러 첫 요리를 등록해 보세요!'}</p>
+                </div>
+            `;
+        } else {
+            filteredList.forEach(entry => {
+                const imgHtml = entry.photo 
+                    ? `<img class="dining-card-img" src="${entry.photo}" alt="${entry.name}">`
+                    : `<div class="dining-card-no-img"><span class="material-icons-round">restaurant</span></div>`;
+                    
+                gridHtml += `
+                    <div class="dining-card" onclick="UI.showDiningDetailModal('${entry.id}')">
+                        ${imgHtml}
+                        <div class="dining-card-info">
+                            <div class="dining-card-title">${entry.name}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        let html = `
+            <div class="search-bar">
+                <span class="material-icons-round">search</span>
+                <input type="text" id="dining-search" placeholder="요리 이름 검색..." value="${searchKeyword}">
+            </div>
+            <div class="dining-grid">
+                ${gridHtml}
+            </div>
+        `;
+        
+        this.mainContent.innerHTML = html;
+        
+        // Search input event
+        const searchInput = document.getElementById('dining-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                window._diningSearchFilter = e.target.value;
+                this.renderDiningView();
+                // Maintain cursor position
+                const inp = document.getElementById('dining-search');
+                if (inp) {
+                    inp.focus();
+                    inp.setSelectionRange(inp.value.length, inp.value.length);
+                }
+            });
+        }
+    },
+
+    showDiningEntryModal(id = null) {
+        const entry = id ? store.getMiniDiningList().find(e => e.id === id) : null;
+        
+        const nameVal = entry ? entry.name : '';
+        window._tempDiningData = {
+            photo: entry ? entry.photo : null,
+            menuCard: entry ? entry.menuCard : null,
+            recipe: entry ? entry.recipe : null,
+            recipeType: entry && entry.recipe && !entry.recipe.startsWith('data:') ? 'text' : 'file'
+        };
+        
+        this._renderDiningFormModal(nameVal, id);
+    },
+    
+    _renderDiningFormModal(nameVal, id) {
+        const data = window._tempDiningData;
+        
+        // Photo preview
+        const photoPreview = data.photo 
+            ? `<div class="file-preview-box has-file">
+                 <button class="file-delete-btn" onclick="UI.deleteDiningTempFile('photo', '${nameVal}', '${id}')">×</button>
+                 <img class="file-preview-img" src="${data.photo}">
+               </div>`
+            : `<div class="file-preview-box">
+                 <span style="color:var(--text-secondary); font-size:13px;">요리 완성 사진 없음</span><br>
+                 <label class="file-input-label">
+                     <span class="material-icons-round" style="font-size:16px;">add_a_photo</span>사진 등록
+                     <input type="file" accept="image/*" style="display:none;" onchange="UI.uploadDiningFile(this, 'photo', '${nameVal}', '${id}')">
+                 </label>
+               </div>`;
+               
+        // MenuCard preview
+        const menuPreview = data.menuCard
+            ? `<div class="file-preview-box has-file">
+                 <button class="file-delete-btn" onclick="UI.deleteDiningTempFile('menuCard', '${nameVal}', '${id}')">×</button>
+                 ${data.menuCard.startsWith('data:application/pdf') 
+                     ? `<span style="color:#4caf50; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px;"><span class="material-icons-round">picture_as_pdf</span>PDF 메뉴판 등록됨</span>`
+                     : `<img class="file-preview-img" src="${data.menuCard}">`
+                 }
+               </div>`
+            : `<div class="file-preview-box">
+                 <span style="color:var(--text-secondary); font-size:13px;">메뉴판 파일 없음</span><br>
+                 <label class="file-input-label">
+                     <span class="material-icons-round" style="font-size:16px;">upload_file</span>파일 등록
+                     <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="UI.uploadDiningFile(this, 'menuCard', '${nameVal}', '${id}')">
+                 </label>
+               </div>`;
+
+        // Recipe preview
+        let recipeContentHtml = '';
+        if (data.recipeType === 'text') {
+            const textVal = data.recipe && !data.recipe.startsWith('data:') ? data.recipe : '';
+            recipeContentHtml = `
+                <textarea id="dining-recipe-text" placeholder="레시피 내용을 텍스트로 작성하세요..." style="width:100%; height:120px; background:var(--surface-color); color:var(--text-primary); border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:0; font-family:inherit; outline:none; resize:none;">${textVal}</textarea>
+            `;
+        } else {
+            recipeContentHtml = data.recipe
+                ? `<div class="file-preview-box has-file">
+                     <button class="file-delete-btn" onclick="UI.deleteDiningTempFile('recipe', '${nameVal}', '${id}')">×</button>
+                     ${data.recipe.startsWith('data:application/pdf')
+                         ? `<span style="color:#4caf50; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px;"><span class="material-icons-round">picture_as_pdf</span>PDF 레시피 등록됨</span>`
+                         : `<img class="file-preview-img" src="${data.recipe}">`
+                     }
+                   </div>`
+                : `<div class="file-preview-box">
+                     <span style="color:var(--text-secondary); font-size:13px;">레시피 파일 없음</span><br>
+                     <label class="file-input-label">
+                         <span class="material-icons-round" style="font-size:16px;">upload_file</span>파일 등록
+                         <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="UI.uploadDiningFile(this, 'recipe', '${nameVal}', '${id}')">
+                     </label>
+                   </div>`;
+        }
+        
+        const recipeSelectorHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; margin-top:15px;">
+                <label style="font-size:13px; color:var(--text-secondary);">레시피</label>
+                <div style="display:flex; gap:8px;">
+                    <button class="secondary-btn" style="width:auto; padding:4px 8px; font-size:11px; height:28px; background-color:${data.recipeType==='text'?'var(--surface-light)':'transparent'}" onclick="UI.toggleDiningRecipeType('text', '${nameVal}', '${id}')">텍스트 작성</button>
+                    <button class="secondary-btn" style="width:auto; padding:4px 8px; font-size:11px; height:28px; background-color:${data.recipeType==='file'?'var(--surface-light)':'transparent'}" onclick="UI.toggleDiningRecipeType('file', '${nameVal}', '${id}')">파일 업로드</button>
+                </div>
+            </div>
+            ${recipeContentHtml}
+        `;
+        
+        let html = `
+            <h3>${id ? '요리 수정' : '새 요리 등록'}</h3>
+            <div style="max-height:62vh; overflow-y:auto; padding-right:4px; margin-top:15px;">
+                <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">요리 이름</label>
+                <input type="text" id="dining-name" placeholder="요리 이름 입력 (예: 스테이크, 우럭 조림)" value="${nameVal}">
+                
+                <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">요리 완성 사진</label>
+                ${photoPreview}
+                
+                <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">메뉴판 이미지/PDF</label>
+                ${menuPreview}
+                
+                ${recipeSelectorHtml}
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="secondary-btn" onclick="UI.closeModal()">취소</button>
+                <button class="primary-btn" onclick="UI.saveMiniDiningEntry('${id}')">저장</button>
+            </div>
+        `;
+        
+        this.openModal(html);
+    },
+    
+    toggleDiningRecipeType(type, nameVal, id) {
+        const currentName = document.getElementById('dining-name').value;
+        if (window._tempDiningData.recipeType !== type) {
+            window._tempDiningData.recipeType = type;
+            window._tempDiningData.recipe = null;
+        }
+        this._renderDiningFormModal(currentName || nameVal, id === 'null' ? null : id);
+    },
+    
+    async uploadDiningFile(inputEl, field, nameVal, id) {
+        const file = inputEl.files[0];
+        if (!file) return;
+        
+        const currentName = document.getElementById('dining-name').value;
+        
+        // Show loading state
+        const parentBox = inputEl.closest('.file-preview-box');
+        if (parentBox) {
+            parentBox.innerHTML = `<div style="padding:10px; color:var(--text-secondary);">업로드 중...</div>`;
+        }
+        
+        try {
+            if (file.type.startsWith('image/')) {
+                const compressedBase64 = await this.compressImage(file, 800);
+                window._tempDiningData[field] = compressedBase64;
+            } else if (file.type === 'application/pdf') {
+                if (file.size > 300 * 1024) {
+                    alert('PDF 파일이 너무 큽니다. Firestore 용량 확보를 위해 300KB 이하의 파일을 권장합니다.');
+                }
+                const base64Pdf = await this.readFileAsDataURL(file);
+                window._tempDiningData[field] = base64Pdf;
+            } else {
+                alert('이미지 또는 PDF 파일만 업로드할 수 있습니다.');
+            }
+        } catch (e) {
+            console.error('File load error:', e);
+            alert('파일을 불러오는 도중 오류가 발생했습니다.');
+        }
+        
+        this._renderDiningFormModal(currentName || nameVal, id === 'null' ? null : id);
+    },
+    
+    deleteDiningTempFile(field, nameVal, id) {
+        const currentName = document.getElementById('dining-name').value;
+        window._tempDiningData[field] = null;
+        this._renderDiningFormModal(currentName || nameVal, id === 'null' ? null : id);
+    },
+    
+    saveMiniDiningEntry(id) {
+        const name = document.getElementById('dining-name').value.trim();
+        if (!name) return alert('요리 이름을 입력해 주세요.');
+        
+        const data = window._tempDiningData;
+        
+        let recipeVal = data.recipe;
+        if (data.recipeType === 'text') {
+            const txtArea = document.getElementById('dining-recipe-text');
+            recipeVal = txtArea ? txtArea.value.trim() : '';
+        }
+        
+        const entryData = {
+            name: name,
+            photo: data.photo,
+            menuCard: data.menuCard,
+            recipe: recipeVal
+        };
+        
+        store.saveMiniDiningEntry(id === 'null' ? null : id, entryData);
+        this.closeModal();
+        this.renderDiningView();
+    },
+
+    showDiningDetailModal(id) {
+        const entry = store.getMiniDiningList().find(e => e.id === id);
+        if (!entry) return;
+        
+        const bigPhotoHtml = entry.photo
+            ? `<img class="dining-detail-img" src="${entry.photo}" alt="${entry.name}">`
+            : `<div class="dining-card-no-img" style="height:180px; border-radius:12px; margin-bottom:16px;"><span class="material-icons-round" style="font-size:36px;">restaurant</span>사진 없음</div>`;
+            
+        let menuCardHtml = '<p style="color:var(--text-secondary); font-size:13px; text-align:center; padding:10px 0;">등록된 메뉴판이 없습니다.</p>';
+        if (entry.menuCard) {
+            if (entry.menuCard.startsWith('data:application/pdf')) {
+                menuCardHtml = `
+                    <div style="text-align:center; padding:15px 0;">
+                        <span class="material-icons-round" style="font-size:48px; color:#ff9800; margin-bottom:8px;">picture_as_pdf</span>
+                        <p style="font-weight:600; margin-bottom:12px; font-size:14px;">PDF 메뉴판</p>
+                        <a href="${entry.menuCard}" target="_blank" class="primary-btn" style="width:auto; display:inline-flex; padding:8px 16px; font-size:13px;">메뉴판 PDF 파일 열기</a>
+                    </div>
+                `;
+            } else {
+                menuCardHtml = `<img src="${entry.menuCard}" style="width:100%; max-height:350px; object-fit:contain; border-radius:8px; border:1px solid var(--border-color); display:block; margin:0 auto;">`;
+            }
+        }
+        
+        let recipeHtml = '<p style="color:var(--text-secondary); font-size:13px; text-align:center; padding:10px 0;">등록된 레시피가 없습니다.</p>';
+        if (entry.recipe) {
+            if (entry.recipe.startsWith('data:application/pdf')) {
+                recipeHtml = `
+                    <div style="text-align:center; padding:15px 0;">
+                        <span class="material-icons-round" style="font-size:48px; color:#ff9800; margin-bottom:8px;">picture_as_pdf</span>
+                        <p style="font-weight:600; margin-bottom:12px; font-size:14px;">PDF 레시피</p>
+                        <a href="${entry.recipe}" target="_blank" class="primary-btn" style="width:auto; display:inline-flex; padding:8px 16px; font-size:13px;">레시피 PDF 파일 열기</a>
+                    </div>
+                `;
+            } else if (entry.recipe.startsWith('data:image/')) {
+                recipeHtml = `<img src="${entry.recipe}" style="width:100%; max-height:350px; object-fit:contain; border-radius:8px; border:1px solid var(--border-color); display:block; margin:0 auto;">`;
+            } else {
+                recipeHtml = `
+                    <div style="background:var(--surface-light); padding:16px; border-radius:10px; font-size:14px; line-height:1.6; white-space:pre-wrap; border:1px solid var(--border-color); max-height:300px; overflow-y:auto;">${entry.recipe}</div>
+                `;
+            }
+        }
+        
+        let html = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0;">${entry.name}</h3>
+                <div style="display:flex; gap:6px;">
+                    <button class="secondary-btn" style="width:auto; padding:6px 12px; font-size:12px; height:32px;" onclick="UI.showDiningEntryModal('${entry.id}')">수정</button>
+                    <button class="secondary-btn" style="width:auto; padding:6px 12px; font-size:12px; height:32px; color:#ff5252; border-color:#ff5252;" onclick="UI.deleteMiniDiningEntry('${entry.id}')">삭제</button>
+                </div>
+            </div>
+            
+            <div style="max-height:62vh; overflow-y:auto; padding-right:4px;">
+                ${bigPhotoHtml}
+                
+                <div class="dining-detail-section">
+                    <div class="dining-section-title"><span class="material-icons-round" style="font-size:18px;">receipt_long</span>메뉴판</div>
+                    ${menuCardHtml}
+                </div>
+                
+                <div class="dining-detail-section">
+                    <div class="dining-section-title"><span class="material-icons-round" style="font-size:18px;">menu_book</span>레시피 및 조리법</div>
+                    ${recipeHtml}
+                </div>
+            </div>
+            
+            <button class="secondary-btn" style="margin-top:20px;" onclick="UI.closeModal()">닫기</button>
+        `;
+        
+        this.openModal(html);
+    },
+    
+    deleteMiniDiningEntry(id) {
+        if (confirm('이 요리 정보를 삭제하시겠습니까?')) {
+            store.deleteMiniDiningEntry(id);
+            this.closeModal();
+            this.renderDiningView();
         }
     }
 };

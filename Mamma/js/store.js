@@ -11,7 +11,8 @@ const defaultData = {
     logs: {}, // { '2026-03-15': { breakfast: [recipeId], lunch: [], dinner: [] } }
     shoppingList: { selectedMenus: [], customItems: [] }, // Phase 2: Shopping List State
     shoppingCart: { active: [], history: [] },
-    fishingLogs: []
+    fishingLogs: [],
+    miniDining: []
 };
 
 class Store {
@@ -25,6 +26,7 @@ class Store {
             const parsed = JSON.parse(stored);
             if (!parsed.shoppingCart) parsed.shoppingCart = { active: [], history: [] };
             if (!parsed.fishingLogs) parsed.fishingLogs = [];
+            if (!parsed.miniDining) parsed.miniDining = [];
             return parsed;
         }
         return JSON.parse(JSON.stringify(defaultData));
@@ -232,6 +234,37 @@ class Store {
         this.saveData();
     }
 
+    // Mini Dining Methods
+    getMiniDiningList() {
+        if (!this.data.miniDining) this.data.miniDining = [];
+        return this.data.miniDining;
+    }
+    saveMiniDiningEntry(id = null, entryData) {
+        const list = this.getMiniDiningList();
+        if (id) {
+            const idx = list.findIndex(e => e.id === id);
+            if (idx > -1) {
+                list[idx] = { 
+                    ...list[idx], 
+                    ...entryData, 
+                    id: id 
+                };
+            }
+        } else {
+            const newEntry = {
+                ...entryData,
+                id: Date.now().toString(),
+                createdAt: Date.now()
+            };
+            list.unshift(newEntry); // newer first
+        }
+        this.saveData();
+    }
+    deleteMiniDiningEntry(id) {
+        this.data.miniDining = this.getMiniDiningList().filter(e => e.id !== id);
+        this.saveData();
+    }
+
     // Phase 2: Export/Import for Sync
     exportData() {
         return btoa(encodeURIComponent(JSON.stringify(this.data)));
@@ -244,6 +277,7 @@ class Store {
                 // Migrate parsed data as well when imported
                 if (!this.data.shoppingCart) this.data.shoppingCart = { active: [], history: [] };
                 if (!this.data.fishingLogs) this.data.fishingLogs = [];
+                if (!this.data.miniDining) this.data.miniDining = [];
                 this.saveData();
                 return true;
             }
