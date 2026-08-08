@@ -1466,7 +1466,7 @@ const UI = {
     // ==========================================
     // Mini Dining Helper Methods
     // ==========================================
-    compressImage(file, maxWidth = 800) {
+    compressImage(file, maxDimension = 600, targetMaxKB = 45) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -1478,9 +1478,16 @@ const UI = {
                     let width = img.width;
                     let height = img.height;
                     
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
+                    if (width > height) {
+                        if (width > maxDimension) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        }
+                    } else {
+                        if (height > maxDimension) {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
                     }
                     
                     canvas.width = width;
@@ -1489,7 +1496,22 @@ const UI = {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    let quality = 0.5;
+                    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    
+                    // Progressive compression to ensure size is under targetMaxKB
+                    while (dataUrl.length > targetMaxKB * 1370 && quality > 0.15) {
+                        quality -= 0.1;
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    
+                    if (dataUrl.length > targetMaxKB * 1370) {
+                        canvas.width = Math.round(width * 0.7);
+                        canvas.height = Math.round(height * 0.7);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        dataUrl = canvas.toDataURL('image/jpeg', 0.35);
+                    }
+                    
                     resolve(dataUrl);
                 };
                 img.onerror = (err) => reject(err);

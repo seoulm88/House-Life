@@ -83,15 +83,19 @@ export class CloudSync {
         
         try {
             this.updateStatus(true, 'cloud_upload');
+            const dataString = JSON.stringify(this.store.data);
             const docRef = doc(this.db, SYNC_DOC_PATH);
             await setDoc(docRef, { 
-                storeData: JSON.stringify(this.store.data),
+                storeData: dataString,
                 updatedAt: Date.now()
             });
             this.updateStatus(true, 'cloud_done');
         } catch (e) {
             console.error("Sync to cloud failed:", e);
             this.updateStatus(false, 'cloud_off');
+            if (e && e.message && (e.message.includes('exceeds') || e.message.includes('size') || e.message.includes('resource-exhausted'))) {
+                alert('⚠️ 클라우드 저장 용량(1MB)을 초과하여 동기화에 실패했습니다. 사진을 다시 등록하시거나 큰 파일을 정리해 주세요.');
+            }
         }
     }
 

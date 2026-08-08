@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mamma-cache-v4';
+const CACHE_NAME = 'mamma-cache-v5';
 const urlsToCache = [
   './',
   './index.html',
