@@ -1,8 +1,10 @@
-const CACHE_NAME = 'mamma-cache-v5';
+const CACHE_NAME = 'mamma-cache-v6';
 const urlsToCache = [
   './',
   './index.html',
   './css/style.css',
+  './js/version.js',
+  './js/firebase-config.js',
   './js/store.js',
   './js/ai.js',
   './js/ui.js',
@@ -33,10 +35,26 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Exclude non-GET requests and external third-party APIs (like Firestore / Google APIs)
+  if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Network-First strategy for local app files:
+  // Always fetch the freshest code when online, update the cache in the background, and fallback to cache if offline.
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        return response || fetch(event.request);
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
       })
   );
 });

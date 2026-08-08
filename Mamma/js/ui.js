@@ -3,6 +3,7 @@
  */
 import { store } from './store.js';
 import { MammaAI } from './ai.js';
+import { APP_VERSION, RELEASE_NOTES } from './version.js';
 
 const UI = {
     currentView: 'daily',
@@ -19,6 +20,7 @@ const UI = {
         this.setupNavigation();
         this.setupSidebarEvents();
         this.renderView(this.currentView);
+        this.checkVersionUpdateNotice();
     },
 
     setupSidebarEvents() {
@@ -35,6 +37,16 @@ const UI = {
             this.sidebarOverlay.addEventListener('click', () => {
                 this.sidebar.classList.remove('open');
                 this.sidebarOverlay.classList.remove('open');
+            });
+        }
+
+        // Version & release notes button in sidebar footer
+        const versionBtn = document.getElementById('version-btn');
+        if (versionBtn) {
+            versionBtn.addEventListener('click', () => {
+                this.showReleaseNotesModal(true);
+                if (this.sidebar) this.sidebar.classList.remove('open');
+                if (this.sidebarOverlay) this.sidebarOverlay.classList.remove('open');
             });
         }
 
@@ -1851,6 +1863,95 @@ const UI = {
             this.closeModal();
             this.renderDiningView();
         }
+    },
+
+    // ==========================================
+    // App Version & Update Release Notes Modal
+    // ==========================================
+    checkVersionUpdateNotice() {
+        const lastSeen = localStorage.getItem('mamma_seen_version');
+        if (lastSeen !== APP_VERSION) {
+            // Delay slightly so the UI finishes loading smoothly
+            setTimeout(() => {
+                this.showReleaseNotesModal(false);
+            }, 300);
+        }
+    },
+
+    showReleaseNotesModal(isManual = false) {
+        const notes = RELEASE_NOTES;
+        let itemsHtml = '';
+        
+        notes.items.forEach(item => {
+            const badgeBg = item.type === 'new' ? '#e3f2fd' : '#e8f5e9';
+            const badgeColor = item.type === 'new' ? '#1976d2' : '#2e7d32';
+            itemsHtml += `
+                <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:10px; text-align:left;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:11px; font-weight:700; background:${badgeBg}; color:${badgeColor}; padding:2px 8px; border-radius:4px;">${item.tag}</span>
+                        <strong style="font-size:14px;">${item.title}</strong>
+                    </div>
+                    <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin:0;">${item.desc}</p>
+                </div>
+            `;
+        });
+
+        const actionBtnHtml = isManual
+            ? `<button class="primary-btn" onclick="UI.closeModal()">닫기</button>`
+            : `
+                <button class="primary-btn" onclick="UI.dismissUpdateNotice()">확인 (다시 보지 않기)</button>
+              `;
+
+        const html = `
+            <div style="text-align:center; margin-bottom:16px;">
+                <div style="font-size:36px; margin-bottom:6px;">🎉</div>
+                <h3 style="margin-bottom:4px;">${notes.title}</h3>
+                <div style="font-size:12px; color:var(--text-secondary);">버전 ${notes.version} (${notes.date})</div>
+            </div>
+            
+            <div style="max-height:55vh; overflow-y:auto; padding-right:4px; margin-bottom:16px;">
+                ${itemsHtml}
+            </div>
+
+            ${actionBtnHtml}
+        `;
+
+        this.openModal(html);
+    },
+
+    dismissUpdateNotice() {
+        localStorage.setItem('mamma_seen_version', APP_VERSION);
+        this.closeModal();
+    },
+
+    showUpdateBanner() {
+        if (document.getElementById('pwa-update-banner')) return;
+        
+        const banner = document.createElement('div');
+        banner.id = 'pwa-update-banner';
+        banner.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--surface-color);
+            border: 1px solid #4caf50;
+            color: var(--text-primary);
+            padding: 12px 18px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            font-size: 13px;
+        `;
+        banner.innerHTML = `
+            <span class="material-icons-round" style="color:#4caf50; font-size:20px;">update</span>
+            <span>새로운 업데이트가 적용 가능합니다!</span>
+            <button class="primary-btn" style="width:auto; padding:6px 12px; font-size:12px;" onclick="window.location.reload()">새로고침</button>
+        `;
+        document.body.appendChild(banner);
     }
 };
 

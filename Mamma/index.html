@@ -76,6 +76,14 @@
                     <span>낚시기록</span>
                 </button>
             </div>
+            
+            <!-- Sidebar Footer: Version & Release Notes -->
+            <div class="sidebar-footer" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center;">
+                <button id="version-btn" style="background: none; border: none; color: var(--text-secondary); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; transition: background-color 0.2s;">
+                    <span class="material-icons-round" style="font-size: 14px;">info</span>
+                    <span>Mamma v2.4.0 (업데이트 내역)</span>
+                </button>
+            </div>
         </aside>
 
         <!-- Header -->
@@ -103,20 +111,53 @@
     </div>
 
     <!-- Scripts -->
+    <script type="module" src="js/version.js"></script>
     <script type="module" src="js/firebase-config.js"></script>
     <script type="module" src="js/store.js"></script>
     <script type="module" src="js/ai.js"></script>
     <script type="module" src="js/ui.js"></script>
     <script type="module" src="js/app.js"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration & Seamless Auto-Update -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('ServiceWorker registration successful');
+                    console.log('ServiceWorker registered');
+                    
+                    // Periodically check for updates
+                    reg.update();
+
+                    // Check for updates when user switches back to the app
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible') {
+                            reg.update();
+                        }
+                    });
+
+                    // Listen for incoming new version
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('New update available.');
+                                if (window.UI && window.UI.showUpdateBanner) {
+                                    window.UI.showUpdateBanner();
+                                }
+                            }
+                        });
+                    });
                 }).catch(err => {
                     console.error('ServiceWorker registration failed: ', err);
+                });
+
+                // Auto-refresh when new service worker takes control
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
                 });
             });
         }
